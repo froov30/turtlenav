@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>turtle_game</name>
+  <version>0.0.0</version>
+  <description>Multi-node autonomous ROS 2 target chasing and mapping game featuring PID control, Kalman Filtering, Occupancy Grid Mapping, and Watchdog safety monitoring.</description>
+  <maintainer email="dhruv@todo.todo">dhruv</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>turtlesim</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>turtle_game_interfaces</depend>
+  <depend>visualization_msgs</depend>
+  <depend>nav_msgs</depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-rich</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

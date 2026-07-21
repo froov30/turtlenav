@@ -1,0 +1,20 @@
+# ROS 2 build products
+/build/
+/install/
+/log/
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE and local environment settings
+.vscode/
+.idea/
+.env
+
+# Game-generated session and score data
+*.jsonl
+*_summary.json
+.turtlenav_scores.json
+.turtlenav_logs/

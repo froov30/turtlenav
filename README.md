@@ -1,224 +1,150 @@
-# 🚀 ROS2 Autonomous Target Chasing System
+# TurtleNav
 
-A multi-node ROS2 project implementing autonomous target tracking and elimination using turtlesim.
+TurtleNav is an extensible `turtlesim` game that demonstrates ROS 2 topics,
+services, control, filtering, mapping, health monitoring, and post-game analytics.
 
-This project demonstrates practical understanding of ROS2 architecture including custom messages, custom services, asynchronous communication, and closed-loop control.
+## Architecture
 
----
-
-## 🎥 Demo Video
-📌 Watch the full demo here:  
-👉 [https://drive.google.com/file/d/17gXgsXPaxz5zScEAV_TujdgpeHaKnY51/view?usp=drive_link]
-
-## 🎥 Screenshot
-![Screenshot](images/image.png)   
-
----
-
-## 👨‍💻 Author
-**Om Gajjar**  
-Robotics & Automation Engineer  
-🔗 LinkedIn: https://www.linkedin.com/in/omgajjar1976/  
-💻 GitHub: https://github.com/gajjugamer  
-
----
-
-# 📌 Project Overview
-
-This project simulates an autonomous robot that:
-
-1. Spawns random targets in a 2D simulation
-2. Detects target positions
-3. Computes velocity commands using a proportional controller
-4. Navigates toward the target
-5. Eliminates the target via a custom ROS2 service
-6. Repeats continuously
-
-The system is built using two independent ROS2 nodes that communicate through topics and services.
-
----
-
-# 🏗 System Architecture
-
-## Nodes
-
-### 1️⃣ TurtleSpawner Node
-- Spawns turtles at random coordinates
-- Publishes all active turtle data
-- Provides a custom kill service
-- Maintains internal turtle registry
-
-### 2️⃣ TargetChaser Node
-- Subscribes to turtle pose
-- Subscribes to active turtle list
-- Computes control commands
-- Calls custom kill service when target is reached
-
----
-
-## 🔄 Communication Flow
-
-Spawner Node  
-→ Publishes → `/turtles_data` (Custom Message)
-
-Chaser Node  
-→ Subscribes → `/turtles_data`  
-→ Publishes → `/turtle1/cmd_vel`  
-→ Calls → `kill_turtle` (Custom Service)
-
-Spawner Node  
-→ Calls → `/kill` (Turtlesim Service)
-
----
-
-# 🧠 Control Strategy
-
-A proportional (P) controller is used for navigation.
-
-### Distance Control:
-```
-linear_velocity = Kp_distance × distance
+```text
+GameManager -> /game/state -> Spawner -> /turtles_data -> Player or Chaser
+                                      |                    |
+                                      +-- kill_turtle <----+
+Player pose -> Kalman Filter -> Player Controller
+Player pose/catches -> Mapper -> RViz topics
+All runtime topics -> Watchdog and Data Logger -> Analytics
 ```
 
-### Angular Control:
-```
-angular_velocity = Kp_angle × angle_error
-```
+The package provides ten executable nodes: `turtle_spawner`,
+`target_chaser`, `game_manager`, `player_controller`, `pid_controller`,
+`kalman_filter_node`, `occupancy_grid_mapper`, `watchdog`, `data_logger`,
+and `analytics`.
 
-### Angle Normalization:
-```
-atan2(sin(theta), cos(theta))
-```
+`target_chaser` is an alternative autonomous controller. Do not run it beside
+the manual player or PID controller because each publishes `/turtle1/cmd_vel`.
 
-This ensures smooth rotation without discontinuity at ±π.
+## Prerequisites
 
-A tolerance threshold prevents oscillation near the target.
+- Ubuntu with ROS 2 Humble, Iron, or Jazzy installed and sourced
+- ROS 2 packages: `turtlesim`, `rviz2`, `geometry_msgs`, `nav_msgs`,
+  `visualization_msgs`, `std_msgs`, and `std_srvs`
+- Build and dependency tools: `colcon`, `rosdep`, CMake, and the ROS Python
+  build tooling
+- Python libraries: `numpy`, `rich`, and `pytest`
+- `xterm` for the separate game-manager, player-controller, and watchdog
+  terminals used by the default manual launch
 
----
+For ROS 2 Humble on Ubuntu, install the system dependencies with:
 
-# 📦 Custom Interfaces
-
-## Custom Message: TurtleData.msg
-```
-string name
-float64 x
-float64 y
-float64 theta
-```
-
-## Custom Message: TurtleArray.msg
-```
-TurtleData[] turtles
-```
-
-## Custom Service: KillTurtle.srv
-```
-string name
----
-bool success
-```
-
----
-
-# 🛠 Technologies Used
-
-- ROS2 (rclpy)
-- turtlesim
-- Python
-- Custom ROS2 Messages
-- Custom ROS2 Services
-- Asynchronous Service Calls
-- Timer-based Control Loops
-
----
-
-# 🧩 Key ROS2 Concepts Demonstrated
-
-✔ Publisher / Subscriber Model  
-✔ Custom Message Definitions  
-✔ Custom Service Definitions  
-✔ Service Client / Server Architecture  
-✔ Asynchronous Callbacks  
-✔ Multi-node Communication  
-✔ Real-time Control Loop  
-✔ Angle Normalization  
-✔ Target State Management  
-
----
-
-# ▶️ How to Run
-
-### 1️⃣ Build the workspace
 ```bash
-colcon build
+sudo apt update
+sudo apt install \
+  ros-humble-turtlesim \
+  ros-humble-rviz2 \
+  ros-humble-geometry-msgs \
+  ros-humble-nav-msgs \
+  ros-humble-visualization-msgs \
+  ros-humble-std-msgs \
+  ros-humble-std-srvs \
+  python3-colcon-common-extensions \
+  python3-rosdep \
+  python3-numpy \
+  python3-pytest \
+  python3-rich \
+  xterm
+```
+
+Replace `humble` with your installed ROS 2 distribution where applicable.
+Initialize rosdep once on a new machine, then resolve dependencies from the
+workspace root:
+
+```bash
+sudo rosdep init
+rosdep update
+```
+
+```bash
+cd ~/turtle_game_ws/src/ros2_turtle_chaser
+rosdep install --from-paths . --ignore-src -r -y
+```
+
+## Build
+
+```bash
+cd ~/turtle_game_ws
+colcon build --symlink-install
 source install/setup.bash
 ```
 
-### 2️⃣ Run turtlesim
+## Run
+
+### Default game: manual player control
+
 ```bash
-ros2 run turtlesim turtlesim_node
+ros2 launch turtle_game turtle_game.launch.py
 ```
 
-### 3️⃣ Run Spawner Node
+Press uppercase `S` in the player-controller terminal to start. Use `W/A/S/D`
+to drive and Space to stop. The PID node is launched disabled; enable it only
+when manual control is not publishing commands:
+
 ```bash
-ros2 run your_package_name turtle_spawner
+ros2 param set /pid_controller enabled true
 ```
 
-### 4️⃣ Run Chaser Node
+### Autonomous chaser mode
+
 ```bash
-ros2 run your_package_name target_chaser
+ros2 launch turtle_game autonomous_turtle_game.launch.py
 ```
 
-You will observe autonomous chasing and elimination of targets.
+This profile auto-starts the game and runs `target_chaser`, without the player
+or PID controller. Its linear speed is capped at 4.0 turtlesim units per
+second.
 
----
+### Analytics
 
-# 📊 What I Learned
+`analytics` is intentionally on-demand rather than part of either launch:
 
-Through this project, I gained hands-on understanding of:
+```bash
+ros2 run turtle_game analytics
+```
 
-- ROS2 system design
-- Real-time node communication
-- Service-based architecture
-- Control systems integration
-- Multi-node coordination
-- Clean asynchronous programming patterns
+It reads the newest session summary from `~/.turtlenav_logs`.
 
-This project strengthened my foundation in robotics software architecture.
+## RViz2
 
----
+Live mapping is one of the core game features. Start RViz2 in a second
+terminal while either game mode is running:
 
-# 🚀 Future Improvements In Robotics
+```bash
+source ~/turtle_game_ws/install/setup.bash
+rviz2
+```
 
-- Integrate Gazebo simulation
-- Add perception (camera-based detection)
-- Implement Finite State Machine (FSM)
-- Navigation Stack 2
-- SLAM
-- TF Tree
+Set **Fixed Frame** to `map`, then add these live displays:
 
----
+- `/map/occupancy_grid` as **Map**
+- `/map/path` as **Marker**
+- `/map/markers` as **MarkerArray**
 
-# 📌 Why This Project Matters
+The occupancy grid shows explored, danger, and high-value areas; the path
+marker traces the player; and the marker array records golden and bomb catches.
+You can also load the packaged configuration from
+`share/turtle_game/rviz/rviz_Settings.rviz` after installation.
 
-This is not a basic talker-listener example.
+## Runtime behaviour
 
-It demonstrates:
+- **Spawner** creates normal, golden, evasive, bomb, and freeze turtles.
+- **Game manager** handles countdowns, scoring, combos, and the game clock.
+- **Kalman filter** produces `/turtles_data_filtered` for the manual player.
+- **Mapper** records exploration, routes, danger zones, and high-value zones.
+- **Watchdog** reports stale node heartbeats to `/system/fault`.
+- **Data logger** persists JSONL events and JSON summaries outside the repo.
 
-• Full multi-node ROS2 architecture  
-• Custom interface development  
-• Real-time control integration  
-• Service-client server chaining  
-• System-level robotics thinking  
+## Test
 
----
-
-# 🤝 Connect With Me
-
-If you are working in robotics, ROS2, embedded systems, or autonomous systems — let's connect!
-
-🔗 LinkedIn: https://www.linkedin.com/in/omgajjar1976/
-
----
-
-⭐ If you found this project interesting, feel free to star the repository!
+```bash
+cd ~/turtle_game_ws
+colcon test --packages-select turtle_game turtle_game_interfaces
+colcon test-result --verbose
+```
