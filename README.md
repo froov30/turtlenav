@@ -148,3 +148,24 @@ cd ~/turtle_game_ws
 colcon test --packages-select turtle_game turtle_game_interfaces
 colcon test-result --verbose
 ```
+graph TD
+    %% Core components
+    UI[User Interface<br/>(CLI / Web)] -->|Input| CLI[CLI Handler]
+    CLI -->|Dispatch| Engine[Game Engine]
+    Engine -->|Logic| Model[Model Service]
+    Model -->|Generate| Response[Response Generation]
+    Response -->|Output| Renderer[Renderer]
+    Renderer -->|Display| User
+
+    %% Supporting components
+    Config[Config Manager] -->|Configuration| Engine
+    Config -->|Settings| Model
+    Test[Test Suite] -->|Validation| Engine
+    Test -->|Evaluation| Model
+    Telemetry[Telemetry Collector] -->|Metrics| Model
+    External[Claude Code Integration] -->|Telemetry/Commands| Model
+
+    classDef core fill:#ff9999,stroke:#333,stroke-width:2px;
+    class UI,CLI,Engine,Model,Renderer,User core;
+    class Config,Test,Telemetry,External fill:#99cc99,stroke:#333,stroke-width:1px;
+</style>
