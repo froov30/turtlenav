@@ -1,171 +1,91 @@
 # TurtleNav
 
-TurtleNav is an extensible `turtlesim` game that demonstrates ROS 2 topics,
-services, control, filtering, mapping, health monitoring, and post-game analytics.
+An extensible ROS 2 game demonstrating core robotics concepts: topics, services, control, sensor filtering, and health monitoring on the `turtlesim` platform.
 
-## Architecture
+## What this is
 
-```text
-GameManager -> /game/state -> Spawner -> /turtles_data -> Player or Chaser
-                                      |                    |
-                                      +-- kill_turtle <----+
-Player pose -> Kalman Filter -> Player Controller
-Player pose/catches -> Mapper -> RViz topics
-All runtime topics -> Watchdog and Data Logger -> Analytics
-```
+TurtleNav teaches robotics fundamentals by building a complete game loop around the turtlesim simulator. A player controls a turtle to catch moving targets while the system tracks game state, filters noisy sensor input, maps the arena, monitors node health, and logs all events. The architecture uses ROS 2 services, topics, and parameters to decouple game logic, control, and analytics.
 
-The package provides ten executable nodes: `turtle_spawner`,
-`target_chaser`, `game_manager`, `player_controller`, `pid_controller`,
-`kalman_filter_node`, `occupancy_grid_mapper`, `watchdog`, `data_logger`,
-and `analytics`.
+## Quick start
 
-`target_chaser` is an alternative autonomous controller. Do not run it beside
-the manual player or PID controller because each publishes `/turtle1/cmd_vel`.
+### Prerequisites
 
-## Prerequisites
+- Ubuntu 22.04 with ROS 2 Humble (or Iron / Jazzy)
+- `rosdep`, `colcon`, Python 3, numpy, rich, pytest
 
-- Ubuntu with ROS 2 Humble, Iron, or Jazzy installed and sourced
-- ROS 2 packages: `turtlesim`, `rviz2`, `geometry_msgs`, `nav_msgs`,
-  `visualization_msgs`, `std_msgs`, and `std_srvs`
-- Build and dependency tools: `colcon`, `rosdep`, CMake, and the ROS Python
-  build tooling
-- Python libraries: `numpy`, `rich`, and `pytest`
-- `xterm` for the separate game-manager, player-controller, and watchdog
-  terminals used by the default manual launch
-
-For ROS 2 Humble on Ubuntu, install the system dependencies with:
+### Setup
 
 ```bash
-sudo apt update
-sudo apt install \
-  ros-humble-turtlesim \
-  ros-humble-rviz2 \
-  ros-humble-geometry-msgs \
-  ros-humble-nav-msgs \
-  ros-humble-visualization-msgs \
-  ros-humble-std-msgs \
-  ros-humble-std-srvs \
-  python3-colcon-common-extensions \
-  python3-rosdep \
-  python3-numpy \
-  python3-pytest \
-  python3-rich \
-  xterm
-```
-
-Replace `humble` with your installed ROS 2 distribution where applicable.
-Initialize rosdep once on a new machine, then resolve dependencies from the
-workspace root:
-
-```bash
-sudo rosdep init
-rosdep update
-```
-
-```bash
-cd ~/turtle_game_ws/src/ros2_turtle_chaser
-rosdep install --from-paths . --ignore-src -r -y
-```
-
-## Build
-
-```bash
+sudo rosdep init && rosdep update
 cd ~/turtle_game_ws
-colcon build --symlink-install
+rosdep install --from-paths . --ignore-src -r -y
+colcon build --symlink-install --packages-select turtle_game turtle_game_interfaces
 source install/setup.bash
 ```
 
-## Run
+### Run
 
-### Default game: manual player control
-
+**Manual player mode (default):**
 ```bash
 ros2 launch turtle_game turtle_game.launch.py
+# Press uppercase 'S' to start, use W/A/S/D to drive, Space to stop
 ```
 
-Press uppercase `S` in the player-controller terminal to start. Use `W/A/S/D`
-to drive and Space to stop. The PID node is launched disabled; enable it only
-when manual control is not publishing commands:
-
-```bash
-ros2 param set /pid_controller enabled true
-```
-
-### Autonomous chaser mode
-
+**Autonomous chaser mode:**
 ```bash
 ros2 launch turtle_game autonomous_turtle_game.launch.py
 ```
 
-This profile auto-starts the game and runs `target_chaser`, without the player
-or PID controller. Its linear speed is capped at 4.0 turtlesim units per
-second.
-
-### Analytics
-
-`analytics` is intentionally on-demand rather than part of either launch:
-
+**View analytics:**
 ```bash
 ros2 run turtle_game analytics
 ```
 
-It reads the newest session summary from `~/.turtlenav_logs`.
-
-## RViz2
-
-Live mapping is one of the core game features. Start RViz2 in a second
-terminal while either game mode is running:
+### Monitor in RViz2
 
 ```bash
-source ~/turtle_game_ws/install/setup.bash
 rviz2
 ```
 
-Set **Fixed Frame** to `map`, then add these live displays:
-
+Set Fixed Frame to `map`, then add these displays:
 - `/map/occupancy_grid` as **Map**
 - `/map/path` as **Marker**
 - `/map/markers` as **MarkerArray**
 
-The occupancy grid shows explored, danger, and high-value areas; the path
-marker traces the player; and the marker array records golden and bomb catches.
-You can also load the packaged configuration from
-`share/turtle_game/rviz/rviz_Settings.rviz` after installation.
+## Architecture
 
-## Runtime behaviour
+| Component | Role |
+|---|---|
+| **game_manager** | Countdown, scoring, combos, game clock |
+| **turtle_spawner** | Create and manage normal, golden, evasive, bomb, and freeze turtles |
+| **player_controller** | Manual keyboard input handler |
+| **pid_controller** | Velocity PID regulator for smooth motion |
+| **target_chaser** | Autonomous turtle-tracking algorithm |
+| **kalman_filter_node** | Denoise player pose from `/turtle1/pose` |
+| **occupancy_grid_mapper** | Record exploration, danger zones, high-value zones |
+| **watchdog** | Monitor node heartbeats, report faults |
+| **data_logger** | Persist JSONL events and JSON session summaries |
+| **analytics** | Post-game reporting (catches, arena map, timing) |
 
-- **Spawner** creates normal, golden, evasive, bomb, and freeze turtles.
-- **Game manager** handles countdowns, scoring, combos, and the game clock.
-- **Kalman filter** produces `/turtles_data_filtered` for the manual player.
-- **Mapper** records exploration, routes, danger zones, and high-value zones.
-- **Watchdog** reports stale node heartbeats to `/system/fault`.
-- **Data logger** persists JSONL events and JSON summaries outside the repo.
+## Key features
+
+- **Decoupled architecture**: game logic, control, and analytics communicate only through ROS topics and services
+- **Real-time state visualization**: live occupancy grid and path tracing in RViz2
+- **Sensor filtering**: Kalman filter cleans pose estimates before control
+- **Health monitoring**: watchdog detects stale nodes and missed heartbeats
+- **Deterministic testing**: full game session can be replayed and analyzed
 
 ## Test
 
 ```bash
-cd ~/turtle_game_ws
 colcon test --packages-select turtle_game turtle_game_interfaces
 colcon test-result --verbose
 ```
-graph TD
-    %% Core components
-    UI[User Interface<br/>(CLI / Web)] -->|Input| CLI[CLI Handler]
-    CLI -->|Dispatch| Engine[Game Engine]
-    Engine -->|Logic| Model[Model Service]
-    Model -->|Generate| Response[Response Generation]
-    Response -->|Output| Renderer[Renderer]
-    Renderer -->|Display| User
 
-    %% Supporting components
-    Config[Config Manager] -->|Configuration| Engine
-    Config -->|Settings| Model
-    Test[Test Suite] -->|Validation| Engine
-    Test -->|Evaluation| Model
-    Telemetry[Telemetry Collector] -->|Metrics| Model
-    External[Claude Code Integration] -->|Telemetry/Commands| Model
+## License
 
-    classDef core fill:#ff9999,stroke:#333,stroke-width:2px;
-    class UI,CLI,Engine,Model,Renderer,User core;
-    class Config,Test,Telemetry,External fill:#99cc99,stroke:#333,stroke-width:1px;
-</style>
+MIT License. See [LICENSE](LICENSE).
+
+## Contact
+
+GitHub: [@froov30](https://github.com/froov30)
